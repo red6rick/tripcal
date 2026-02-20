@@ -60,12 +60,21 @@ attached to the current date.
 ### title
 
 ```
-title 19apr26 Spring 2026 Southwest Loop
+title Spring 2026 Southwest Loop
 ```
 
-Required. Must be the first non-blank line. The optional date sets the
-calendar start, rounded back to the preceding Sunday. The remaining text
-is the display name shown on the landing page and calendar header.
+Required. Must be the first non-blank line. The display name shown on the
+landing page and calendar header.
+
+### start
+
+```
+start 19apr26
+```
+
+Optional. Sets the calendar start date, rounded back to the preceding Sunday.
+Without a `start` tag, the calendar begins on the Sunday before the first
+event date.
 
 ### Date line
 
@@ -95,7 +104,7 @@ Indented lines following belong to the incremented day.
 ### end
 
 ```
-end 15jun26
+end 10jun26
 ```
 
 Sets the last day of the calendar. Days after this date render as plain
@@ -125,9 +134,10 @@ an activity line:
 
 | Word | Where | Meaning |
 |------|-------|---------|
-| `title` | first line | calendar display name, optional start date |
-| `arriving` | date line | marks day as travel day |
+| `title` | first line | calendar display name |
+| `start` | left margin | calendar start date |
 | `end` | left margin | last rendered date |
+| `arriving` | date line | marks day as travel day |
 | `+` | left margin | advance current date by one day |
 
 ---
@@ -135,7 +145,8 @@ an activity line:
 ## Complete Example
 
 ```
-title 19apr26 Spring 2026 Southwest Loop
+title Spring 2026 Southwest Loop
+start 19apr26
 end 10jun26
 
 19apr26 little rock

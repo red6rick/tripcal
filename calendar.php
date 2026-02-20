@@ -28,21 +28,13 @@ $MON_ABBR = ['','JAN','FEB','MAR','APR','MAY','JUN',
 // ============================================================
 
 $COLOR_PALETTE = [
-    '#FFB3BA',   // 01 Light Pink
-    '#FFFDB3',   // 02 Pale Yellow / Cream
-    '#B3F1C8',   // 03 Mint Green
-    '#B3EEF1',   // 04 Pale Cyan / Powder Blue
-    '#C4B3F1',   // 05 Pale Lavender / Periwinkle
-    '#F1B3C4',   // 06 Pastel Rose
-    '#FFCBA4',   // 07 Peach
-    '#D4F1E0',   // 08 Pale Seafoam
-    '#B3D4F1',   // 10 Light Cornflower Blue
-    '#E0B3F1',   // 11 Pale Violet / Wisteria
-    '#FFE4A6',   // 12 Pale Gold / Buff
-    '#F1B3E0',   // 13 Pale Orchid / Pink Lavender
-    '#F1D4B3',   // 14 Pale Apricot
-    '#E0E0F1',   // 15 Lavender Mist
-    '#D4F1B3',   // 09 Light Lime Green
+    '#b8d4b0',  // 1. sage green
+    '#ddc89a',  // 2. warm sand
+    '#a8c4d8',  // 3. sky blue
+    '#d4b8cc',  // 4. dusty rose
+    '#ccd4a0',  // 5. yellow-green
+    '#a8d0d0',  // 6. muted teal
+    '#d4c4a0',  // 7. adobe
 ];
 
 // ============================================================
@@ -138,23 +130,21 @@ $cur_location = null;
 
 foreach ($lines as $line) {
 
+    // start line
+    if (preg_match('/^start\s+(\S+)/i', $line, $m)) {
+        $start_epoch = parse_date_token(trim($m[1]), $MONTHS);
+        continue;
+    }
+
     // end line
     if (preg_match('/^end\s+(\S+)/i', $line, $m)) {
         $end_epoch = parse_date_token(trim($m[1]), $MONTHS);
         continue;
     }
 
-    // title line — optional date token first, then title text
+    // title line
     if (preg_match('/^title\s+(.+)/i', $line, $m)) {
-        $rest  = trim($m[1]);
-        $first = strtok($rest, " \t");
-        $maybe = parse_date_token($first, $MONTHS);
-        if ($maybe !== null) {
-            $start_epoch = $maybe;
-            $title = trim(substr($rest, strlen($first)));
-        } else {
-            $title = $rest;
-        }
+        $title = trim($m[1]);
         continue;
     }
 
