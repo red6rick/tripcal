@@ -28,14 +28,14 @@ $MON_ABBR = ['','JAN','FEB','MAR','APR','MAY','JUN',
 // ============================================================
 
 $COLOR_PALETTE = [
-    '#d0d0d0',  // 1. sage green
-    '#ffffd0',  // 1. sage green
-    '#ffd0ff',  // 2. warm sand
-    '#ffd0d0',  // 4. dusty rose
-    '#d0ffff',  // 3. sky blue
-    '#d0ffd0',  // 5. yellow-green
-    '#d0d0ff',  // 6. muted teal
-    '#d4c4a0',  // 7. adobe
+    '#d0d0d0',  // 1. light grey
+    '#ffffd0',  // 2. light yellow
+    '#ffd0ff',  // 3. light magenta
+    '#ffd0d0',  // 4. light red
+    '#d0ffff',  // 5. light cyan
+    '#d0ffd0',  // 6. light green
+    '#d0d0ff',  // 7. light blue
+    '#d4c4a0',  // 8. adobe
 ];
 
 // ============================================================
@@ -64,6 +64,47 @@ function render_inline($text) {
         $text
     );
     return $text;
+}
+
+function maps_urlencode($str) {
+    $result = '';
+    for ($i = 0; $i < strlen($str); $i++) {
+        $c = $str[$i];
+        if (preg_match('/[A-Za-z0-9._~:@!$&\'()*+,;=\/\-]/', $c)) {
+            $result .= $c;
+        } elseif ($c === ' ') { $result .= '%20'; }
+        elseif ($c === ',') { $result .= '%2C'; }
+        elseif ($c === '#') { $result .= '%23'; }
+        elseif ($c === '%') { $result .= '%25'; }
+        elseif ($c === '?') { $result .= '%3F'; }
+        elseif ($c === '=') { $result .= '%3D'; }
+        elseif ($c === '&') { $result .= '%26'; }
+        else { $result .= $c; }
+    }
+    return $result;
+}
+
+function google_maps_url($stops) {
+    if (count($stops) < 2) return null;
+    $url = 'https://www.google.com/maps/dir';
+    foreach ($stops as $stop) {
+        $encoded = str_replace([' ', ','], ['+', '%2C'], $stop);
+        $url .= '/' . $encoded;
+    }
+    return $url;
+}
+
+function apple_maps_url($stops) {
+    if (count($stops) < 2) return null;
+
+    $url = 'https://maps.apple.com/directions?mode=driving';
+    $url .= '&source=' . maps_urlencode($stops[0]);
+    for ($i = 1; $i < count($stops) - 1; $i++) {
+        $url .= '&waypoint=' . maps_urlencode($stops[$i]);
+        $url .= '&waypoint-place-id=';
+    }
+    $url .= '&destination=' . maps_urlencode($stops[count($stops) - 1]);
+    return $url;
 }
 
 function cell_html($epoch, $day, $loc_colors, $MON_ABBR) {
@@ -128,6 +169,7 @@ $end_epoch    = null;
 $events       = [];
 $cur_epoch    = null;
 $cur_location = null;
+$route_stops  = [];   // ordered list of locations for Apple Maps
 
 foreach ($lines as $line) {
 
@@ -187,6 +229,14 @@ foreach ($lines as $line) {
             $new_location = $rest !== '' ? $rest : $cur_location;
             $prev = $cur_location;
             if ($arriving || $rest !== '') $cur_location = $new_location;
+
+            // collect route stops: first location is origin, each arriving is a stop
+            if ($arriving) {
+                if (empty($route_stops) && $prev) $route_stops[] = $prev;
+                $route_stops[] = $new_location;
+            } elseif (empty($route_stops) && $new_location) {
+                $route_stops[] = $new_location;
+            }
 
             $events[$cur_epoch] = [
                 'arriving'      => $arriving,
@@ -386,6 +436,15 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 .act-line a { color: #0000cc; text-decoration: underline; }
 .act-line a:hover { color: #0000ff; }
 .cal-cell.travel .loc-label { text-shadow: none; }
+.maps-link {
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+}
+.maps-link a {
+    color: #0000cc;
+    text-decoration: underline;
+}
+.maps-link a:hover { color: #0000ff; }
 </style>
 </head>
 <body>
@@ -406,6 +465,22 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     </div>
 <?php endforeach; ?>
 </div>
+
+<?php $maps_url = apple_maps_url($route_stops); ?>
+<?php $gmaps_url = google_maps_url($route_stops); ?>
+<?php if ($maps_url || $gmaps_url): ?>
+<div class="maps-link">
+    <?php if ($maps_url): ?>
+        <a href="<?= htmlspecialchars($maps_url) ?>" target="_blank">open in apple maps</a>
+    <?php endif; ?>
+    <?php if ($maps_url && $gmaps_url): ?>
+        &nbsp;&bull;&nbsp;
+    <?php endif; ?>
+    <?php if ($gmaps_url): ?>
+        <a href="<?= htmlspecialchars($gmaps_url) ?>" target="_blank">open in google maps</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <!-- Sticky day-of-week header -->
 <div class="dow-row">
