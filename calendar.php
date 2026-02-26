@@ -28,12 +28,13 @@ $MON_ABBR = ['','JAN','FEB','MAR','APR','MAY','JUN',
 // ============================================================
 
 $COLOR_PALETTE = [
-    '#b8d4b0',  // 1. sage green
-    '#ddc89a',  // 2. warm sand
-    '#a8c4d8',  // 3. sky blue
-    '#d4b8cc',  // 4. dusty rose
-    '#ccd4a0',  // 5. yellow-green
-    '#a8d0d0',  // 6. muted teal
+    '#d0d0d0',  // 1. sage green
+    '#ffffd0',  // 1. sage green
+    '#ffd0ff',  // 2. warm sand
+    '#ffd0d0',  // 4. dusty rose
+    '#d0ffff',  // 3. sky blue
+    '#d0ffd0',  // 5. yellow-green
+    '#d0d0ff',  // 6. muted teal
     '#d4c4a0',  // 7. adobe
 ];
 
