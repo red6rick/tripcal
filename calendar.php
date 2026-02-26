@@ -28,14 +28,16 @@ $MON_ABBR = ['','JAN','FEB','MAR','APR','MAY','JUN',
 // ============================================================
 
 $COLOR_PALETTE = [
-    '#d0d0d0',  // 1. light grey
-    '#ffffd0',  // 2. light yellow
-    '#ffd0ff',  // 3. light magenta
-    '#ffd0d0',  // 4. light red
-    '#d0ffff',  // 5. light cyan
-    '#d0ffd0',  // 6. light green
-    '#d0d0ff',  // 7. light blue
-    '#d4c4a0',  // 8. adobe
+    '#ffffd0',  // 1. light yellow
+    '#ffd0ff',  // 2. light magenta
+    '#ffd0d0',  // 3. light red
+    '#d0ffff',  // 4. light cyan
+    '#d0ffd0',  // 5. light green
+    '#d0d0ff',  // 6. light blue
+    '#ffd0b0',  // 7. light orange
+    '#f0d0ff',  // 8. light violet
+    '#d0ffe0',  // 9. light mint
+    '#fff0d0',  // 10. light peach
 ];
 
 // ============================================================
