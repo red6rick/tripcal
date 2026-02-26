@@ -41,8 +41,45 @@ $COLOR_PALETTE = [
 ];
 
 // ============================================================
-// HELPERS
+// DRIVING DISTANCE (Google Maps API + file cache)
 // ============================================================
+
+define('CACHE_DIR',   __DIR__ . '/cache/');
+define('MAPS_KEY_FILE', __DIR__ . '/maps_api.key');
+
+function load_distance_cache($trip) {
+    $file = CACHE_DIR . $trip . '.distances.json';
+    if (file_exists($file)) {
+        return json_decode(file_get_contents($file), true) ?? [];
+    }
+    return [];
+}
+
+function save_distance_cache($trip, $cache) {
+    if (!is_dir(CACHE_DIR)) mkdir(CACHE_DIR, 0755, true);
+    file_put_contents(CACHE_DIR . $trip . '.distances.json', json_encode($cache, JSON_PRETTY_PRINT));
+}
+
+function get_driving_distance($origin, $destination) {
+    if (!defined('MAPS_API_KEY')) return null;
+    $url = 'https://maps.googleapis.com/maps/api/distancematrix/json?' . http_build_query([
+        'origins'      => $origin,
+        'destinations' => $destination,
+        'mode'         => 'driving',
+        'units'        => 'imperial',
+        'key'          => MAPS_API_KEY,
+    ]);
+    $response = @file_get_contents($url);
+    if (!$response) return null;
+    $data = json_decode($response, true);
+    if (($data['status'] ?? '') === 'OK' &&
+        ($data['rows'][0]['elements'][0]['status'] ?? '') === 'OK') {
+        return $data['rows'][0]['elements'][0]['distance']['text'];
+    }
+    return null;
+}
+
+
 
 function parse_date_token($token, $MONTHS) {
     if (!preg_match('/^(\d{1,2})([a-z]{3})(\d{2,4})$/i', $token, $m)) return null;
@@ -58,15 +95,17 @@ function prev_sunday($epoch) {
     return $epoch - ($dow * 86400);
 }
 
-function render_inline($text) {
+function render_inline($text, $epoch = null, $trip_prefix = '') {
     $text = htmlspecialchars($text, ENT_QUOTES);
-    // Wiki links: [wiki](PageName) -> <a href="/Main/PageName">PageName</a>
+    // Wiki links: [wiki](PageName) -> <a href="/TripName/yyyy_mm_dd_PageName">PageName</a>
     $text = preg_replace_callback(
         '/\[wiki\]\(([^)]+)\)/i',
-        function($m) {
+        function($m) use ($epoch, $trip_prefix) {
             $page  = $m[1];
-            $href  = str_replace(' ', '', $page);
-            return '<a href="/Main/' . $href . '">' . $page . '</a>';
+            $slug  = str_replace(' ', '', ucwords($page));
+            $date  = $epoch ? date('Y_m_d', $epoch) : '0000_00_00';
+            $href  = $trip_prefix . $date . '_' . $slug;
+            return '<a href="' . $href . '">' . $page . '</a>';
         },
         $text
     );
@@ -120,7 +159,7 @@ function apple_maps_url($stops) {
     return $url;
 }
 
-function cell_html($epoch, $day, $loc_colors, $MON_ABBR) {
+function cell_html($epoch, $day, $loc_colors, $MON_ABBR, $trip_prefix, $distance = null) {
     $d_num = (int)date('j', $epoch);
     $mo    = (int)date('n', $epoch);
     $yr    = (int)date('Y', $epoch);
@@ -153,18 +192,30 @@ function cell_html($epoch, $day, $loc_colors, $MON_ABBR) {
     $html  = "<div class=\"cal-cell{$extra}\" style=\"{$style}\">\n";
     $html .= "  <span class=\"day-num\">{$label}</span>\n";
 
-    if ($arriving) {
-        $from = htmlspecialchars($day['prev_location'] ?? '');
-        $to   = htmlspecialchars($day['location']      ?? '');
-        $html .= "  <span class=\"loc-label\">{$from} &rarr; {$to}</span>\n";
-    } elseif ($loc && !$idle) {
+    // Activities scroll in the middle
+    if (!$arriving && $loc && !$idle) {
         $html .= "  <span class=\"loc-label\">" . htmlspecialchars($loc) . "</span>\n";
     } elseif ($idle && empty($day['activities'])) {
         $html .= "  <span class=\"idle-badge\">idle</span>\n";
     }
 
-    foreach ($day['activities'] as $act) {
-        $html .= "  <span class=\"act-line\">" . render_inline($act) . "</span>\n";
+    if (!empty($day['activities'])) {
+        $html .= "  <div class=\"act-scroll\">\n";
+        foreach ($day['activities'] as $act) {
+            $html .= "    <span class=\"act-line\">" . render_inline($act, $epoch, $trip_prefix) . "</span>\n";
+        }
+        $html .= "  </div>\n";
+    }
+
+    // Fixed footer for travel days: mileage then destination
+    if ($arriving) {
+        $to = htmlspecialchars($day['location'] ?? '');
+        $html .= "  <div class=\"travel-footer\">\n";
+        if ($distance) {
+            $html .= "    <span class=\"dist-label\">{$distance}</span>\n";
+        }
+        $html .= "    <span class=\"loc-label\">{$to}</span>\n";
+        $html .= "  </div>\n";
     }
 
     $html .= "</div>\n";
@@ -183,6 +234,9 @@ $events       = [];
 $cur_epoch    = null;
 $cur_location = null;
 $route_stops  = [];   // ordered list of locations for Apple Maps
+
+// Build wiki link prefix: /TripFilename/ with first char uppercased
+$trip_prefix  = '/Trips/';
 
 foreach ($lines as $line) {
 
@@ -351,8 +405,33 @@ for ($e = $range_start; $e <= $range_end; $e += 86400) {
 }
 
 // ============================================================
-// OUTPUT
+// DRIVING DISTANCES
 // ============================================================
+
+if (file_exists(MAPS_KEY_FILE)) require_once MAPS_KEY_FILE;
+
+$dist_cache  = load_distance_cache($trip);
+$cache_dirty = false;
+$distances   = [];   // epoch => "342 mi"
+
+foreach ($all_days as $e => $day) {
+    if (!($day['arriving'] ?? false) || empty($day['prev_location'])) continue;
+    $key = strtolower($day['prev_location']) . '|' . strtolower($day['location']);
+    if (isset($dist_cache[$key])) {
+        $distances[$e] = $dist_cache[$key];
+    } elseif (defined('MAPS_API_KEY')) {
+        $d = get_driving_distance($day['prev_location'], $day['location']);
+        if ($d !== null) {
+            $dist_cache[$key] = $d;
+            $distances[$e]    = $d;
+            $cache_dirty      = true;
+        }
+    }
+}
+
+if ($cache_dirty) save_distance_cache($trip, $dist_cache);
+
+
 
 $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 ?>
@@ -407,13 +486,27 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 .cal-cell {
     background: #ffffff;
     height: 110px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
     padding: 0.4rem 0.5rem;
     font-size: 0.68rem;
     line-height: 1.5;
     border-right: 1px solid #000000;
     border-bottom: 1px solid #000000;
+    overflow: hidden;
+}
+.act-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+.act-scroll::-webkit-scrollbar { width: 3px; }
+.act-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.3); }
+.travel-footer {
+    margin-top: auto;
+    padding-top: 0.15rem;
+    flex-shrink: 0;
 }
 .cal-cell.empty, .cal-cell.out-of-trip {
     background: #ffffff;
@@ -449,6 +542,12 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 .act-line a { color: #0000cc; text-decoration: underline; }
 .act-line a:hover { color: #0000ff; }
 .cal-cell.travel .loc-label { text-shadow: none; }
+.dist-label {
+    display: block;
+    font-size: 0.58rem;
+    color: #000000;
+    letter-spacing: 0.05em;
+}
 .maps-link {
     margin-bottom: 1rem;
     font-size: 0.75rem;
@@ -505,7 +604,7 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 <!-- Continuous calendar grid -->
 <div class="cal-grid">
 <?php foreach ($all_days as $e => $day): ?>
-    <?= cell_html($e, $day, $loc_colors, $MON_ABBR) ?>
+    <?= cell_html($e, $day, $loc_colors, $MON_ABBR, $trip_prefix, $distances[$e] ?? null) ?>
 <?php endforeach; ?>
 </div>
 
