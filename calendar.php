@@ -60,6 +60,17 @@ function prev_sunday($epoch) {
 
 function render_inline($text) {
     $text = htmlspecialchars($text, ENT_QUOTES);
+    // Wiki links: [wiki](PageName) -> <a href="/Main/PageName">PageName</a>
+    $text = preg_replace_callback(
+        '/\[wiki\]\(([^)]+)\)/i',
+        function($m) {
+            $page  = $m[1];
+            $href  = str_replace(' ', '', $page);
+            return '<a href="/Main/' . $href . '">' . $page . '</a>';
+        },
+        $text
+    );
+    // External links: [label](url)
     $text = preg_replace_callback(
         '/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/',
         fn($m) => '<a href="' . $m[2] . '" target="_blank">' . $m[1] . '</a>',
