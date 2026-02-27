@@ -1,5 +1,10 @@
 <?php
 // calendar.php -- parse and render a trip file as a calendar grid
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+
 require_once __DIR__ . '/common.php';
 define('TRIPS_DIR', __DIR__ . '/trips/');
 
