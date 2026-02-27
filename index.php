@@ -1,14 +1,20 @@
 <?php
 // index.php -- landing page: list calendars, upload, create new
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
 require_once __DIR__ . '/common.php';
 define('TRIPS_DIR', __DIR__ . '/trips/');
 
 // --- Handle new calendar creation ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+
+    if ($_POST['action'] === 'delete') {
+        $name = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['filename'] ?? '');
+        if ($name) {
+            $file = TRIPS_DIR . $name . '.txt';
+            if (file_exists($file)) unlink($file);
+        }
+        header('Location: index.php');
+        exit;
+    }
 
     if ($_POST['action'] === 'new') {
         $name = trim($_POST['filename'] ?? '');
@@ -126,6 +132,11 @@ usort($trips, fn($a,$b) => strcmp($a['title'], $b['title']));
     </div>
     <a class="btn-sm" href="calendar.php?trip=<?= urlencode($t['name']) ?>">view</a>
     <a class="btn-sm" href="edit.php?trip=<?= urlencode($t['name']) ?>">edit</a>
+    <form method="post" style="margin:0;" onsubmit="return confirm('Delete <?= htmlspecialchars(addslashes($t['title'])) ?>?')">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="filename" value="<?= htmlspecialchars($t['name']) ?>">
+        <button type="submit" class="btn-sm" style="color:#cc0000; border-color:#cc0000;">delete</button>
+    </form>
 </div>
 <?php endforeach; ?>
 </div>

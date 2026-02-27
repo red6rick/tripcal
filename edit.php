@@ -10,9 +10,27 @@ $filepath = TRIPS_DIR . $trip . '.txt';
 
 // Handle save
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $content = str_replace("\r\n", "\n", $_POST['content'] ?? '');
+
     if (isset($_POST['save'])) {
-        file_put_contents($filepath, str_replace("\r\n", "\n", $_POST['content'] ?? ''));
+        file_put_contents($filepath, $content);
         header('Location: calendar.php?trip=' . urlencode($trip));
+        exit;
+    }
+    if (isset($_POST['save_continue'])) {
+        file_put_contents($filepath, $content);
+        header('Location: edit.php?trip=' . urlencode($trip));
+        exit;
+    }
+    if (isset($_POST['save_as'])) {
+        $newname = preg_replace('/[^a-zA-Z0-9_\-]/', '', trim($_POST['new_filename'] ?? ''));
+        if ($newname) {
+            $newpath = TRIPS_DIR . $newname . '.txt';
+            file_put_contents($newpath, $content);
+            header('Location: edit.php?trip=' . urlencode($newname));
+        } else {
+            header('Location: edit.php?trip=' . urlencode($trip) . '&err=badname');
+        }
         exit;
     }
     if (isset($_POST['cancel'])) {
@@ -58,11 +76,17 @@ textarea:focus { border-color: #8a8478; }
 </div>
 
 <div class="editor-wrap">
+    <?php if (isset($_GET['err']) && $_GET['err'] === 'badname'): ?>
+        <div style="color:#cc0000; font-size:0.75rem; margin-bottom:0.5rem;">Save-as filename was empty or invalid — letters, numbers, underscores, hyphens only.</div>
+    <?php endif; ?>
     <form method="post">
         <textarea name="content" spellcheck="false"><?= htmlspecialchars($content) ?></textarea>
         <div class="btn-row">
             <button type="submit" name="save">Save &amp; View</button>
-            <button type="submit" name="cancel" style="background:transparent; color:var(--dim); border-color:var(--border);">Cancel</button>
+            <button type="submit" name="save_continue">Save &amp; Continue</button>
+            <button type="submit" name="save_as">Save As</button>
+            <input type="text" name="new_filename" placeholder="new filename (no .txt)" style="font-family:'DM Mono',monospace; font-size:0.75rem; padding:0.3rem 0.5rem; border:1px solid #000; width:16rem;">
+            <button type="submit" name="cancel" style="background:transparent; border-color:#000; margin-left:auto;">Cancel</button>
         </div>
     </form>
 </div>

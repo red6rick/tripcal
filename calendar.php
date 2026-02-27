@@ -169,6 +169,7 @@ function cell_html($epoch, $day, $loc_colors, $MON_ABBR, $trip_prefix, $distance
     $idle     = $day['idle'] ?? false;
     $arriving = $day['arriving'] ?? false;
     $out      = $day['out_of_trip'] ?? false;
+    $explicit = $day['explicit'] ?? false;
 
     // Out-of-trip cells: white, just the date label
     if ($out) {
@@ -193,10 +194,6 @@ function cell_html($epoch, $day, $loc_colors, $MON_ABBR, $trip_prefix, $distance
     $html .= "  <span class=\"day-num\">{$label}</span>\n";
 
     // Activities scroll in the middle
-    if (!$arriving && $loc && !$idle) {
-        $html .= "  <span class=\"loc-label\">" . htmlspecialchars($loc) . "</span>\n";
-    }
-
     if (!empty($day['activities'])) {
         $html .= "  <div class=\"act-scroll\">\n";
         foreach ($day['activities'] as $act) {
@@ -329,6 +326,7 @@ foreach ($lines as $lineno => $line) {
                 'location'      => $cur_location,
                 'prev_location' => $arriving ? $prev : null,
                 'activities'    => [],
+                'explicit'      => true,
             ];
             continue;
         }
