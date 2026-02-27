@@ -1,10 +1,5 @@
 <?php
 // calendar.php -- parse and render a trip file as a calendar grid
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-
 require_once __DIR__ . '/common.php';
 define('TRIPS_DIR', __DIR__ . '/trips/');
 
@@ -200,8 +195,6 @@ function cell_html($epoch, $day, $loc_colors, $MON_ABBR, $trip_prefix, $distance
     // Activities scroll in the middle
     if (!$arriving && $loc && !$idle) {
         $html .= "  <span class=\"loc-label\">" . htmlspecialchars($loc) . "</span>\n";
-    } elseif ($idle && empty($day['activities'])) {
-        $html .= "  <span class=\"idle-badge\">idle</span>\n";
     }
 
     if (!empty($day['activities'])) {
@@ -239,21 +232,26 @@ $events       = [];
 $cur_epoch    = null;
 $cur_location = null;
 $route_stops  = [];   // ordered list of locations for Apple Maps
+$parse_warnings = []; // validation messages shown above calendar
 
-// Build wiki link prefix: /TripFilename/ with first char uppercased
+// Build wiki link prefix
 $trip_prefix  = '/Trips/';
 
-foreach ($lines as $line) {
+foreach ($lines as $lineno => $line) {
 
     // start line
     if (preg_match('/^start\s+(\S+)/i', $line, $m)) {
         $start_epoch = parse_date_token(trim($m[1]), $MONTHS);
+        if ($start_epoch === null)
+            $parse_warnings[] = "Line " . ($lineno+1) . ": unrecognized date in 'start' tag: " . htmlspecialchars(trim($m[1]));
         continue;
     }
 
     // end line
     if (preg_match('/^end\s+(\S+)/i', $line, $m)) {
         $end_epoch = parse_date_token(trim($m[1]), $MONTHS);
+        if ($end_epoch === null)
+            $parse_warnings[] = "Line " . ($lineno+1) . ": unrecognized date in 'end' tag: " . htmlspecialchars(trim($m[1]));
         continue;
     }
 
@@ -270,18 +268,34 @@ foreach ($lines as $line) {
     if (!$indented) {
         $token = strtok(trim($line), " \t");
 
-        // day increment
+        // day increment — may include arriving and/or location
         if ($token === '+') {
-            if ($cur_epoch !== null) {
-                $cur_epoch += 86400;
-                if (!isset($events[$cur_epoch])) {
-                    $events[$cur_epoch] = [
-                        'arriving'      => false,
-                        'location'      => $cur_location,
-                        'prev_location' => null,
-                        'activities'    => [],
-                    ];
-                }
+            if ($cur_epoch === null) continue;
+            $cur_epoch += 86400;
+            $rest = trim(substr(trim($line), 1)); // everything after '+'
+
+            $arriving = false;
+            if (preg_match('/^arriving\s*(.*)/i', $rest, $m)) {
+                $arriving = true;
+                $rest = trim($m[1]);
+            }
+
+            $new_location = $arriving ? ($rest !== '' ? $rest : $cur_location) : $cur_location;
+            $prev = $cur_location;
+            if ($arriving) $cur_location = $new_location;
+
+            if ($arriving) {
+                if (empty($route_stops) && $prev) $route_stops[] = $prev;
+                $route_stops[] = $new_location;
+            }
+
+            if (!isset($events[$cur_epoch])) {
+                $events[$cur_epoch] = [
+                    'arriving'      => $arriving,
+                    'location'      => $cur_location,
+                    'prev_location' => $arriving ? $prev : null,
+                    'activities'    => [],
+                ];
             }
             continue;
         }
@@ -302,7 +316,7 @@ foreach ($lines as $line) {
             $prev = $cur_location;
             if ($arriving || $rest !== '') $cur_location = $new_location;
 
-            // collect route stops: first location is origin, each arriving is a stop
+            // collect route stops
             if ($arriving) {
                 if (empty($route_stops) && $prev) $route_stops[] = $prev;
                 $route_stops[] = $new_location;
@@ -318,6 +332,9 @@ foreach ($lines as $line) {
             ];
             continue;
         }
+
+        // non-indented line that isn't a keyword or date
+        $parse_warnings[] = "Line " . ($lineno+1) . ": unrecognized: " . htmlspecialchars(trim($line));
     }
 
     // indented activity line
@@ -353,6 +370,12 @@ if (empty($epoch_keys)) {
 }
 
 $last_event_epoch = $epoch_keys[count($epoch_keys) - 1];
+
+// Post-parse validation
+if ($end_epoch !== null && $start_epoch !== null && $end_epoch <= $start_epoch)
+    $parse_warnings[] = "Warning: 'end' date is not after 'start' date — calendar may be empty.";
+if ($end_epoch !== null && $end_epoch < $epoch_keys[0])
+    $parse_warnings[] = "Warning: 'end' date is before the first event — no trip days will render.";
 
 // Start: explicit title date or first event, rounded back to Sunday
 $range_start = prev_sunday($start_epoch ?? $epoch_keys[0]);
@@ -557,11 +580,16 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     margin-bottom: 1rem;
     font-size: 0.75rem;
 }
-.maps-link a {
-    color: #0000cc;
-    text-decoration: underline;
-}
+.maps-link a { color: #0000cc; text-decoration: underline; }
 .maps-link a:hover { color: #0000ff; }
+.parse-warnings { margin-bottom: 1rem; }
+.parse-warning {
+    font-size: 0.75rem;
+    color: #cc0000;
+    border: 1px solid #cc0000;
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+}
 </style>
 </head>
 <body>
@@ -582,6 +610,14 @@ $DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     </div>
 <?php endforeach; ?>
 </div>
+
+<?php if (!empty($parse_warnings)): ?>
+<div class="parse-warnings">
+    <?php foreach ($parse_warnings as $w): ?>
+        <div class="parse-warning"><?= $w ?></div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <?php $maps_url = apple_maps_url($route_stops); ?>
 <?php $gmaps_url = google_maps_url($route_stops); ?>
