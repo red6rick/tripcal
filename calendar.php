@@ -103,9 +103,9 @@ function render_inline($text, $epoch = null, $trip_prefix = '') {
         function($m) use ($epoch, $trip_prefix) {
             $page  = $m[1];
             $slug  = str_replace(' ', '', ucwords($page));
-            $date  = $epoch ? date('Y_m_d', $epoch) : '0000_00_00';
-            $href  = $trip_prefix . $date . '_' . $slug;
-            return '<a href="' . $href . '">' . $page . '</a>';
+            $date  = $epoch ? date('Y-m-d', $epoch) : '0000-00-00';
+            $href  = $trip_prefix . $date . '-' . $slug;
+            return '<a href="' . $href . '" target="_blank">' . $page . '</a>';
         },
         $text
     );
