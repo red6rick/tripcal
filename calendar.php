@@ -294,6 +294,11 @@ foreach ($lines as $lineno => $line) {
                     'activities'    => [],
                 ];
             }
+
+            // non-arriving text after + is an inline activity
+            if (!$arriving && $rest !== '') {
+                $events[$cur_epoch]['activities'][] = $rest;
+            }
             continue;
         }
 
