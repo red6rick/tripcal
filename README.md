@@ -1,5 +1,7 @@
 # tripcal
 
+A project in python written by Claude.ai, with oversight by me. I did not write this code, but I approved it.
+
 Turns a plain-text trip description into an HTML calendar and a KML map in one pass.
 
 The calendar shows each day color-coded by location, travel days as diagonal gradients between the previous and new location's color, activity notes, and driving distance for each leg. The KML contains the route polylines and waypoints with notes, suitable for import into Google My Maps or Google Earth.
