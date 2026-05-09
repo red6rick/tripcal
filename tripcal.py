@@ -556,6 +556,7 @@ h1 { font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 0.5
 .nav { margin-bottom: 1rem; }
 .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
 .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; }
+.legend-total { font-weight: bold; }
 .swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; }
 .cal-scroll { overflow-x: auto; }
 .dow-row { display: grid; grid-template-columns: repeat(7, minmax(135px, 1fr)); min-width: 945px; position: sticky; top: 0; z-index: 10; border: 2px solid #000; border-bottom: none; }
@@ -621,6 +622,11 @@ def render_html(title, stays, day_map, colors):
     for loc, hex_color in colors.items():
         parts.append(
             f'<div class="legend-item"><span class="swatch" style="background:{hex_color}"></span>{html.escape(loc)}</div>'
+        )
+    total_mi = sum(s.distance_from_prev_mi or 0 for s in stays)
+    if total_mi > 0:
+        parts.append(
+            f'<div class="legend-item legend-total">Total: {total_mi:.0f} mi</div>'
         )
     parts.append("</div>")
 
