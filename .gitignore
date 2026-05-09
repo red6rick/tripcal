@@ -1,1 +1,6 @@
 *~
+maps_key.txt
+.tripcal-cache/*
+.venv/*
+.DS_Store
+

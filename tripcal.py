@@ -682,8 +682,11 @@ def render_cell(d, day_map, colors):
 # ---------------------------------------------------------------------------
 
 KML_HEADER = """<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
+<atom:author>
+  <atom:name>tripcal</atom:name>
+</atom:author>
 <name>{name}</name>
 <description>{desc}</description>
 <Style id="routeStyle">
@@ -748,6 +751,7 @@ def render_kml(title, stays):
 def main():
     ap = argparse.ArgumentParser(description="trip file -> HTML calendar + KML")
     ap.add_argument("trip_file")
+    ap.add_argument("-o", "--out-dir", help="directory for HTML/KML output (default: alongside trip file)")
     ap.add_argument("--no-network", action="store_true", help="skip geocoding/directions (use cache only)")
     args = ap.parse_args()
 
@@ -770,8 +774,14 @@ def main():
     html_out = render_html(title, stays, day_map, colors)
     kml_out = render_kml(title, stays)
 
-    html_path = trip_path.with_suffix(".html")
-    kml_path = trip_path.with_suffix(".kml")
+    if args.out_dir:
+        out_dir = Path(args.out_dir).expanduser()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        html_path = out_dir / (trip_path.stem + ".html")
+        kml_path = out_dir / (trip_path.stem + ".kml")
+    else:
+        html_path = trip_path.with_suffix(".html")
+        kml_path = trip_path.with_suffix(".kml")
     html_path.write_text(html_out)
     kml_path.write_text(kml_out)
 
@@ -779,7 +789,6 @@ def main():
         print(f"warning: {w}", file=sys.stderr)
     print(f"wrote {html_path}")
     print(f"wrote {kml_path}")
-
 
 if __name__ == "__main__":
     main()
