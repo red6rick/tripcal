@@ -6,8 +6,9 @@ Usage: tripcal.py <trip-file>
 Reads a .trip/.txt file in the tripcal grammar, writes two outputs
 alongside it: <basename>.html and <basename>.kml.
 
-Requires: requests, Google Maps API key (GOOGLE_MAPS_API_KEY env var
-or maps_key.txt adjacent to this script).
+Requires: Python 3.8+ (standard library only -- no pip installs, no
+virtualenv) and a Google Maps API key (GOOGLE_MAPS_API_KEY env var or
+maps_key.txt adjacent to this script).
 """
 
 import argparse
@@ -18,11 +19,12 @@ import os
 import re
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-
-import requests
 
 
 # ---------------------------------------------------------------------------
@@ -43,6 +45,22 @@ API_KEY = load_api_key()
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 METERS_PER_MILE = 1609.344
+
+
+def get_json(url, params, timeout=30):
+    """GET a JSON endpoint. Standard library only -- no third-party deps.
+
+    Raises on transport errors or non-2xx status; callers already wrap
+    these in try/except.
+    """
+    full = url + "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(full, headers={"User-Agent": "tripcal/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        code = resp.getcode()
+        if code != 200:
+            raise RuntimeError("HTTP {} from {}".format(code, url))
+        charset = resp.headers.get_content_charset() or "utf-8"
+        return json.loads(resp.read().decode(charset))
 
 
 # ---------------------------------------------------------------------------
@@ -333,9 +351,7 @@ def geocode(location):
     if API_KEY is None:
         return None
     try:
-        r = requests.get(GEOCODE_URL, params={"address": location, "key": API_KEY}, timeout=30)
-        r.raise_for_status()
-        d = r.json()
+        d = get_json(GEOCODE_URL, {"address": location, "key": API_KEY})
         if d["status"] != "OK" or not d["results"]:
             cache_put("geocode", location, [])
             return None
@@ -384,9 +400,7 @@ def directions(origin_ll, dest_ll):
             "mode": "driving",
             "key": API_KEY,
         }
-        r = requests.get(DIRECTIONS_URL, params=params, timeout=30)
-        r.raise_for_status()
-        d = r.json()
+        d = get_json(DIRECTIONS_URL, params)
         if d["status"] != "OK":
             cache_put("directions", key, {"polyline": [], "meters": None})
             return [], None
@@ -661,7 +675,8 @@ def render_cell(d, day_map, colors):
     if info["is_arrival_day"] and info["travel_from"] is not None:
         pc = colors.get(info["travel_from"], "#cccccc")
         nc = colors.get(info["travel_to"], "#cccccc")
-        style = f"background:linear-gradient(135deg,{pc} 50%,{nc} 50%);"
+        # hard vertical split: left quarter = departed location, rest = arrived
+        style = f"background:linear-gradient(90deg,{pc} 25%,{nc} 25%);"
     else:
         bg = colors.get(info["location"], "#dddddd")
         style = f"background:{bg};"

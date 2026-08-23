@@ -1,15 +1,18 @@
 # tripcal
 
-A project in python written by Claude.ai, with oversight by me. I did not write this code, but I approved it.
+**All of the code here was written by Claude, Anthropic's AI assistant.** I did
+not write it. I specified it, argued with it, and approved it. See Credits at
+the bottom.
 
 Turns a plain-text trip description into an HTML calendar and a KML map in one pass.
 
-The calendar shows each day color-coded by location, travel days as diagonal gradients between the previous and new location's color, activity notes, and driving distance for each leg. The KML contains the route polylines and waypoints with notes, suitable for import into Google My Maps or Google Earth.
+The calendar shows each day color-coded by location, travel days split between the previous and new location's color, activity notes, and driving distance for each leg. The KML contains the route polylines and waypoints with notes, suitable for import into Google My Maps or Google Earth.
 
 ## Requirements
 
-- Python 3.12+
-- `requests` (only external dependency)
+- Python 3.8+ — standard library only. No third-party packages, no
+  `pip install`, no virtualenv. The Python that ships with macOS
+  (`/usr/bin/python3`) is sufficient.
 - Google Maps API key with Geocoding and Directions APIs enabled
 
 ## Install
@@ -17,8 +20,10 @@ The calendar shows each day color-coded by location, travel days as diagonal gra
 ```
 git clone <repo>
 cd tripcal
-pip install requests
 ```
+
+That is the whole install. See `install.md` for why there is no
+dependency step.
 
 Put your API key either in the environment:
 
@@ -42,6 +47,7 @@ Writes `<trip-file-basename>.html` and `<trip-file-basename>.kml` next to the in
 
 Flags:
 
+- `-o`, `--out-dir <dir>` — write the HTML and KML into `<dir>` instead of alongside the trip file. The directory is created if absent. Output names come from the trip file's stem with the final extension stripped, so `foo.trip` produces `foo.html` and `foo.kml`.
 - `--no-network` — skip all Geocoding and Directions calls; use only what's already in the on-disk cache. Useful for iterating on the trip file or on the renderer without re-billing the API. Geocoded-but-uncached stays will be missing from the KML; the calendar still renders.
 
 Results from every API call are cached in `.tripcal-cache/` next to the script. Reruns of the same trip cost nothing at the API.
@@ -131,7 +137,7 @@ This produces a calendar where 10apr through 14apr show Little Rock (one origin 
 
 ### HTML
 
-Sunday-first 7-column grid, one row per week. Each cell is fixed-height (110px) with internal vertical scroll on overflow. Travel-day cells have a 135° diagonal gradient from the previous location's color to the new location's color, with the new location name and driving distance on the second line. Non-travel cells are solid.
+Sunday-first 7-column grid, one row per week. Each cell is fixed-height (110px) with internal vertical scroll on overflow. Travel-day cells are split vertically at 25% — the left quarter in the departed location's color, the remainder in the arrived location's color — with the new location name and driving distance on the second line. Non-travel cells are solid.
 
 A legend above the grid shows each location's color. The palette has 10 pastel colors and cycles on the 11th distinct location.
 
@@ -147,3 +153,22 @@ One `<Placemark>` per leg, drawn as a line along the actual driving route with m
 - Stay missing from KML — geocoding failed for that location string. Check the terminal output for "geocode failed: ..." and make the location more specific in the trip file.
 - Wrong distance — the Directions API routes between the geocoded points, not specific addresses. For RV parks and other specific destinations, include enough in the location string to geocode to the right place (street, city, state).
 - Clear the cache to force fresh API calls: `rm -rf .tripcal-cache/`.
+
+## Credits
+
+**All software in this repository — the Python calendar and map generator, the
+awk implementation in `awk_version/`, and the PHP web version in
+`php-version/` — was written by Claude, Anthropic's AI assistant**, over the
+course of several iterative design conversations. The awk and PHP versions are
+earlier passes at the same problem, kept for historical continuity rather than
+because anyone still runs them.
+
+The trip file grammar, the project goals, the layout and palette judgements,
+and every mile of real-world testing are the author's. Claude contributed the
+code, the parser design, and a certain amount of unsolicited opinion about
+whether "for 4 days" ought to mean four nights.
+
+## License
+
+MIT — do what you like, no warranty of any kind. Copyright (c) 2026 Rick
+VanNorman; full text in `LICENSE`.

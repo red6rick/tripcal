@@ -1,5 +1,13 @@
 # RV Travel Calendar
 
+**All of the code here was written by Claude, Anthropic's AI assistant.** I did
+not write it. I specified it, argued with it, and approved it. See Credits at
+the bottom.
+
+This is an earlier pass at the problem, kept for historical continuity. The
+current implementation is the Python one in the repository root; see the
+top-level `README.md`.
+
 A personal trip planning tool for RV travelers. Write your itinerary in a
 plain text file using a simple syntax, then view it as a color-coded calendar
 in any web browser — including on your phone.
@@ -170,3 +178,15 @@ end 10jun26
 This produces a continuous calendar grid starting Sunday April 19, with
 color-coded location blocks, diagonal splits on travel days, and activity
 text in each cell. Days after June 10 render as plain white cells.
+
+## Credits
+
+**The PHP in this directory was written by Claude, Anthropic's AI assistant**,
+over the course of an iterative design conversation. The project goals, the
+trip file syntax, the color and print-layout judgements, and all real-world
+testing are the author's.
+
+## License
+
+MIT — do what you like, no warranty of any kind. Copyright (c) 2026 Rick
+VanNorman; full text in `../LICENSE`.
